@@ -12,6 +12,15 @@ class CrawlerHelpersTest(unittest.TestCase):
             "https://example.com/docs",
         )
 
+    def test_normalize_url_encodes_spaces_in_cms_paths(self) -> None:
+        self.assertEqual(
+            normalize_url(
+                "/-/media/dot-media/documents/simm-25B-web-accessibility-certificate_2025-caltrans- final-a11y",
+                "https://dot.ca.gov/",
+            ),
+            "https://dot.ca.gov/-/media/dot-media/documents/simm-25B-web-accessibility-certificate_2025-caltrans-%20final-a11y",
+        )
+
     def test_filter_links_enforces_domain_lock(self) -> None:
         filtered = filter_links(
             [

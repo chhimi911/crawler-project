@@ -3,13 +3,14 @@ from __future__ import annotations
 import argparse
 import asyncio
 import os
+import re
 from collections import deque
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Iterable
 from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
-from urllib.parse import urljoin, urldefrag, urlparse
+from urllib.parse import quote, urljoin, urldefrag, urlparse, urlsplit, urlunsplit
 
 from bs4 import BeautifulSoup
 from playwright.async_api import Browser, BrowserContext, Page, async_playwright
@@ -33,9 +34,16 @@ class CrawlConfig:
 
 
 def normalize_url(candidate: str, base_url: str) -> str | None:
-    absolute = urljoin(base_url, candidate.strip())
+    sanitized_candidate = re.sub(r"[\x00-\x1f\x7f]+", "", candidate).strip()
+    absolute = urljoin(base_url, sanitized_candidate)
     clean, _fragment = urldefrag(absolute)
-    parsed = urlparse(clean)
+    split = urlsplit(clean)
+    sanitized_path = quote(split.path or "/", safe="/:@!$&'()*+,;=-._~")
+    sanitized_query = quote(split.query, safe="=&/:?@!$'()*+,;%-._~")
+    rebuilt = urlunsplit(
+        (split.scheme, split.netloc, sanitized_path, sanitized_query, "")
+    )
+    parsed = urlparse(rebuilt)
 
     if parsed.scheme not in {"http", "https"} or not parsed.netloc:
         return None
