@@ -15,6 +15,7 @@ import tldextract
 
 
 DEFAULT_OUTPUT = Path("links.txt")
+os.environ.setdefault("PLAYWRIGHT_BROWSERS_PATH", "0")
 TLD_EXTRACTOR = tldextract.TLDExtract(
     suffix_list_urls=None,
     cache_dir=str(Path(".tldextract-cache")),

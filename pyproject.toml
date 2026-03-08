@@ -3,6 +3,10 @@ name = "crawler-project"
 version = "0.1.0"
 description = "Recursive crawler exposed through FastAPI for Vercel."
 requires-python = ">=3.12"
-
-[project.scripts]
-app = "main:app"
+dependencies = [
+    "beautifulsoup4",
+    "fastapi",
+    "playwright",
+    "tldextract",
+    "uvicorn",
+]
