@@ -1,9 +1,14 @@
 from __future__ import annotations
 
+from pathlib import Path
+
 from fastapi import FastAPI, HTTPException, Query
-from fastapi.responses import JSONResponse
+from fastapi.responses import HTMLResponse, JSONResponse
 
 from crawler import CrawlConfig, crawl
+
+
+INDEX_HTML = Path(__file__).parent / "static" / "index.html"
 
 
 app = FastAPI(
@@ -13,15 +18,9 @@ app = FastAPI(
 )
 
 
-@app.get("/")
-async def read_root() -> dict[str, object]:
-    return {
-        "service": "crawler-project",
-        "status": "ok",
-        "usage": {
-            "crawl_endpoint": "/crawl?root_url=https://example.com&max_depth=1&domain_lock=true",
-        },
-    }
+@app.get("/", response_class=HTMLResponse)
+async def read_root() -> HTMLResponse:
+    return HTMLResponse(INDEX_HTML.read_text(encoding="utf-8"))
 
 
 @app.get("/health")

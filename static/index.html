@@ -1,0 +1,669 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Crawler Project</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Space+Grotesk:wght@400;500;700&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      :root {
+        --bg: #f5efe2;
+        --panel: rgba(255, 252, 247, 0.84);
+        --panel-strong: rgba(255, 250, 241, 0.96);
+        --ink: #1e1c18;
+        --muted: #635b51;
+        --line: rgba(30, 28, 24, 0.14);
+        --accent: #0a7a5d;
+        --accent-strong: #095c47;
+        --accent-soft: rgba(10, 122, 93, 0.12);
+        --shadow: 0 24px 80px rgba(77, 55, 26, 0.16);
+        --radius-xl: 28px;
+        --radius-lg: 18px;
+        --radius-md: 14px;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        min-height: 100vh;
+        font-family: "Space Grotesk", sans-serif;
+        color: var(--ink);
+        background:
+          radial-gradient(circle at top left, rgba(255, 255, 255, 0.7), transparent 28%),
+          radial-gradient(circle at top right, rgba(10, 122, 93, 0.15), transparent 22%),
+          linear-gradient(135deg, #efe4cf 0%, #f5efe2 45%, #e4f1ec 100%);
+      }
+
+      body::before {
+        content: "";
+        position: fixed;
+        inset: 0;
+        pointer-events: none;
+        background-image:
+          linear-gradient(rgba(30, 28, 24, 0.03) 1px, transparent 1px),
+          linear-gradient(90deg, rgba(30, 28, 24, 0.03) 1px, transparent 1px);
+        background-size: 28px 28px;
+        mask-image: linear-gradient(to bottom, rgba(0, 0, 0, 0.55), transparent 85%);
+      }
+
+      .shell {
+        width: min(1120px, calc(100% - 32px));
+        margin: 32px auto;
+        display: grid;
+        gap: 22px;
+      }
+
+      .hero,
+      .panel {
+        border: 1px solid var(--line);
+        border-radius: var(--radius-xl);
+        background: var(--panel);
+        backdrop-filter: blur(22px);
+        box-shadow: var(--shadow);
+      }
+
+      .hero {
+        overflow: hidden;
+      }
+
+      .hero-inner {
+        display: grid;
+        grid-template-columns: minmax(0, 1.25fr) minmax(280px, 0.75fr);
+        gap: 18px;
+        padding: 28px;
+      }
+
+      .eyebrow {
+        display: inline-flex;
+        align-items: center;
+        gap: 10px;
+        padding: 8px 12px;
+        border-radius: 999px;
+        background: rgba(255, 255, 255, 0.75);
+        border: 1px solid rgba(30, 28, 24, 0.1);
+        font-size: 0.8rem;
+        text-transform: uppercase;
+        letter-spacing: 0.12em;
+      }
+
+      h1 {
+        margin: 18px 0 12px;
+        font-size: clamp(2.4rem, 5vw, 4.5rem);
+        line-height: 0.93;
+        letter-spacing: -0.05em;
+      }
+
+      .hero p {
+        margin: 0;
+        max-width: 40rem;
+        color: var(--muted);
+        font-size: 1.05rem;
+        line-height: 1.6;
+      }
+
+      .hero-card {
+        padding: 18px;
+        border-radius: 24px;
+        background: linear-gradient(180deg, rgba(255, 255, 255, 0.8), rgba(255, 250, 241, 0.95));
+        border: 1px solid rgba(30, 28, 24, 0.08);
+        display: grid;
+        gap: 14px;
+        align-content: start;
+      }
+
+      .hero-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 12px;
+      }
+
+      .metric {
+        padding: 14px;
+        border-radius: 18px;
+        background: var(--panel-strong);
+        border: 1px solid rgba(30, 28, 24, 0.08);
+      }
+
+      .metric strong {
+        display: block;
+        font-size: 1.5rem;
+        margin-bottom: 4px;
+      }
+
+      .metric span {
+        color: var(--muted);
+        font-size: 0.9rem;
+      }
+
+      .panel {
+        padding: 24px;
+      }
+
+      .layout {
+        display: grid;
+        grid-template-columns: minmax(0, 360px) minmax(0, 1fr);
+        gap: 22px;
+      }
+
+      .panel-title {
+        margin: 0 0 4px;
+        font-size: 1.2rem;
+      }
+
+      .panel-copy {
+        margin: 0 0 22px;
+        color: var(--muted);
+        line-height: 1.55;
+      }
+
+      .stack {
+        display: grid;
+        gap: 16px;
+      }
+
+      label {
+        display: grid;
+        gap: 8px;
+        font-size: 0.94rem;
+      }
+
+      .label-row {
+        display: flex;
+        justify-content: space-between;
+        gap: 12px;
+        align-items: center;
+      }
+
+      .hint {
+        color: var(--muted);
+        font-size: 0.82rem;
+      }
+
+      input[type="url"],
+      select {
+        width: 100%;
+        border: 1px solid rgba(30, 28, 24, 0.14);
+        border-radius: var(--radius-md);
+        background: rgba(255, 255, 255, 0.78);
+        padding: 14px 16px;
+        font: inherit;
+        color: var(--ink);
+        transition: border-color 160ms ease, box-shadow 160ms ease, transform 160ms ease;
+      }
+
+      input[type="url"]:focus,
+      select:focus {
+        outline: none;
+        border-color: rgba(10, 122, 93, 0.6);
+        box-shadow: 0 0 0 4px rgba(10, 122, 93, 0.12);
+        transform: translateY(-1px);
+      }
+
+      .toggle {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 14px 16px;
+        border-radius: var(--radius-md);
+        border: 1px solid rgba(30, 28, 24, 0.12);
+        background: rgba(255, 255, 255, 0.72);
+      }
+
+      .toggle input {
+        width: 18px;
+        height: 18px;
+        accent-color: var(--accent);
+      }
+
+      .button-row {
+        display: flex;
+        gap: 12px;
+        flex-wrap: wrap;
+      }
+
+      button,
+      .ghost-button {
+        appearance: none;
+        border: none;
+        cursor: pointer;
+        border-radius: 999px;
+        font: inherit;
+        transition: transform 160ms ease, box-shadow 160ms ease, background 160ms ease;
+      }
+
+      button:hover,
+      .ghost-button:hover {
+        transform: translateY(-1px);
+      }
+
+      .primary-button {
+        padding: 14px 22px;
+        color: #f8fff8;
+        background: linear-gradient(135deg, var(--accent), #0b9f78);
+        box-shadow: 0 18px 36px rgba(10, 122, 93, 0.24);
+      }
+
+      .ghost-button {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        padding: 14px 18px;
+        color: var(--ink);
+        background: rgba(255, 255, 255, 0.7);
+        border: 1px solid rgba(30, 28, 24, 0.1);
+        text-decoration: none;
+      }
+
+      button:disabled,
+      .ghost-button:disabled {
+        opacity: 0.6;
+        cursor: wait;
+        transform: none;
+      }
+
+      .sample-row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+      }
+
+      .sample-chip {
+        padding: 10px 14px;
+        border-radius: 999px;
+        border: 1px solid rgba(30, 28, 24, 0.1);
+        background: rgba(255, 255, 255, 0.68);
+        font-size: 0.9rem;
+      }
+
+      .sample-chip:hover {
+        background: rgba(10, 122, 93, 0.1);
+      }
+
+      .results-header {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: space-between;
+        gap: 14px;
+        margin-bottom: 18px;
+      }
+
+      .results-meta {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+      }
+
+      .badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        padding: 8px 12px;
+        border-radius: 999px;
+        background: var(--accent-soft);
+        color: var(--accent-strong);
+        font-size: 0.86rem;
+      }
+
+      .status {
+        min-height: 24px;
+        color: var(--muted);
+        font-size: 0.94rem;
+      }
+
+      .status.error {
+        color: #a12727;
+      }
+
+      .results-shell {
+        border-radius: 24px;
+        border: 1px solid rgba(30, 28, 24, 0.08);
+        background: linear-gradient(180deg, rgba(255, 255, 255, 0.88), rgba(249, 246, 239, 0.94));
+        overflow: hidden;
+      }
+
+      .results-toolbar {
+        display: flex;
+        justify-content: space-between;
+        gap: 12px;
+        align-items: center;
+        padding: 16px 18px;
+        border-bottom: 1px solid rgba(30, 28, 24, 0.08);
+      }
+
+      .results-list {
+        list-style: none;
+        margin: 0;
+        padding: 0;
+        max-height: 560px;
+        overflow: auto;
+      }
+
+      .results-list li {
+        padding: 16px 18px;
+        border-top: 1px solid rgba(30, 28, 24, 0.08);
+        animation: slide-up 260ms ease both;
+      }
+
+      .results-list li:first-child {
+        border-top: 0;
+      }
+
+      .result-index {
+        display: inline-block;
+        min-width: 2.25rem;
+        margin-right: 12px;
+        color: var(--muted);
+        font-family: "IBM Plex Mono", monospace;
+      }
+
+      .results-list a {
+        color: var(--ink);
+        text-decoration: none;
+        word-break: break-all;
+      }
+
+      .results-list a:hover {
+        color: var(--accent-strong);
+      }
+
+      .empty-state {
+        padding: 42px 22px;
+        text-align: center;
+        color: var(--muted);
+      }
+
+      .mono {
+        font-family: "IBM Plex Mono", monospace;
+      }
+
+      @keyframes slide-up {
+        from {
+          opacity: 0;
+          transform: translateY(10px);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+
+      @media (max-width: 920px) {
+        .hero-inner,
+        .layout {
+          grid-template-columns: 1fr;
+        }
+
+        .shell {
+          width: min(100% - 20px, 1120px);
+          margin: 20px auto;
+        }
+
+        .panel,
+        .hero {
+          border-radius: 22px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main class="shell">
+      <section class="hero">
+        <div class="hero-inner">
+          <div>
+            <div class="eyebrow">
+              <span>Live crawler</span>
+              <span class="mono">FastAPI + Playwright</span>
+            </div>
+            <h1>Map a site without leaving the browser.</h1>
+            <p>
+              Drop in a URL, choose how deep to crawl, decide whether to stay
+              locked to the same domain, and get back a clean list of discovered
+              links you can copy or download.
+            </p>
+          </div>
+          <aside class="hero-card">
+            <div class="hero-grid">
+              <div class="metric">
+                <strong class="mono" id="heroDepth">1</strong>
+                <span>Current depth</span>
+              </div>
+              <div class="metric">
+                <strong class="mono" id="heroMode">Locked</strong>
+                <span>Traversal mode</span>
+              </div>
+            </div>
+            <p class="panel-copy">
+              The crawler runs breadth-first and returns normalized URLs only.
+            </p>
+          </aside>
+        </div>
+      </section>
+
+      <section class="layout">
+        <section class="panel">
+          <h2 class="panel-title">Control Panel</h2>
+          <p class="panel-copy">
+            Use this form to launch a crawl directly against the deployed API.
+          </p>
+
+          <form id="crawlForm" class="stack">
+            <label>
+              <span class="label-row">
+                <span>Root URL</span>
+                <span class="hint">Include https://</span>
+              </span>
+              <input
+                id="rootUrl"
+                name="root_url"
+                type="url"
+                inputmode="url"
+                placeholder="https://example.com"
+                value="https://example.com"
+                required
+              />
+            </label>
+
+            <label>
+              <span class="label-row">
+                <span>Crawl depth</span>
+                <span class="hint">Depth 0 = only the starting page</span>
+              </span>
+              <select id="maxDepth" name="max_depth">
+                <option value="0">0</option>
+                <option value="1" selected>1</option>
+                <option value="2">2</option>
+                <option value="3">3</option>
+              </select>
+            </label>
+
+            <label class="toggle">
+              <input id="domainLock" name="domain_lock" type="checkbox" checked />
+              <span>
+                <strong>Stay on the same domain</strong><br />
+                <span class="hint">Prevents the crawl from following external links.</span>
+              </span>
+            </label>
+
+            <div class="button-row">
+              <button id="runButton" class="primary-button" type="submit">Run crawl</button>
+              <button id="copyButton" class="ghost-button" type="button" disabled>Copy links</button>
+              <button id="downloadButton" class="ghost-button" type="button" disabled>Download .txt</button>
+            </div>
+          </form>
+
+          <div class="stack" style="margin-top: 18px">
+            <div class="hint">Quick start</div>
+            <div class="sample-row">
+              <button class="sample-chip" type="button" data-url="https://example.com">Example.com</button>
+              <button class="sample-chip" type="button" data-url="https://docs.python.org">Python docs</button>
+              <button class="sample-chip" type="button" data-url="https://fastapi.tiangolo.com">FastAPI docs</button>
+            </div>
+          </div>
+        </section>
+
+        <section class="panel">
+          <div class="results-header">
+            <div>
+              <h2 class="panel-title">Results</h2>
+              <p class="panel-copy">
+                Every link returned by the crawler appears here in normalized form.
+              </p>
+            </div>
+            <div class="results-meta">
+              <div class="badge"><span class="mono" id="resultCount">0</span><span>links</span></div>
+              <div class="badge"><span class="mono" id="resultDomain">No crawl yet</span></div>
+            </div>
+          </div>
+
+          <div id="status" class="status">Ready. Enter a URL and start crawling.</div>
+
+          <div class="results-shell">
+            <div class="results-toolbar">
+              <strong>Discovered URLs</strong>
+              <span class="hint mono" id="resultSummary">Nothing crawled yet</span>
+            </div>
+            <ul id="resultsList" class="results-list">
+              <li class="empty-state">Results will appear here after the first crawl.</li>
+            </ul>
+          </div>
+        </section>
+      </section>
+    </main>
+
+    <script>
+      const form = document.getElementById("crawlForm");
+      const rootUrlInput = document.getElementById("rootUrl");
+      const maxDepthInput = document.getElementById("maxDepth");
+      const domainLockInput = document.getElementById("domainLock");
+      const runButton = document.getElementById("runButton");
+      const copyButton = document.getElementById("copyButton");
+      const downloadButton = document.getElementById("downloadButton");
+      const resultsList = document.getElementById("resultsList");
+      const resultCount = document.getElementById("resultCount");
+      const resultDomain = document.getElementById("resultDomain");
+      const resultSummary = document.getElementById("resultSummary");
+      const heroDepth = document.getElementById("heroDepth");
+      const heroMode = document.getElementById("heroMode");
+      const statusNode = document.getElementById("status");
+      const sampleButtons = document.querySelectorAll("[data-url]");
+
+      let currentLinks = [];
+
+      function setStatus(message, isError = false) {
+        statusNode.textContent = message;
+        statusNode.classList.toggle("error", isError);
+      }
+
+      function updateHero() {
+        heroDepth.textContent = maxDepthInput.value;
+        heroMode.textContent = domainLockInput.checked ? "Locked" : "Open";
+      }
+
+      function setResults(links, rootUrl) {
+        currentLinks = links;
+        resultCount.textContent = String(links.length);
+        resultDomain.textContent = rootUrl ? new URL(rootUrl).hostname : "No domain";
+        resultSummary.textContent = links.length
+          ? `${links.length} URL${links.length === 1 ? "" : "s"} returned`
+          : "No links returned";
+
+        copyButton.disabled = links.length === 0;
+        downloadButton.disabled = links.length === 0;
+
+        if (!links.length) {
+          resultsList.innerHTML = '<li class="empty-state">No links were returned for this crawl.</li>';
+          return;
+        }
+
+        resultsList.innerHTML = links
+          .map(
+            (link, index) => `
+              <li>
+                <span class="result-index">${String(index + 1).padStart(2, "0")}</span>
+                <a href="${link}" target="_blank" rel="noreferrer">${link}</a>
+              </li>
+            `
+          )
+          .join("");
+      }
+
+      async function runCrawl(event) {
+        event.preventDefault();
+        updateHero();
+
+        const params = new URLSearchParams({
+          root_url: rootUrlInput.value.trim(),
+          max_depth: maxDepthInput.value,
+          domain_lock: String(domainLockInput.checked),
+        });
+
+        runButton.disabled = true;
+        copyButton.disabled = true;
+        downloadButton.disabled = true;
+        setStatus("Crawling. This can take a few seconds depending on the site.");
+
+        try {
+          const response = await fetch(`/crawl?${params.toString()}`);
+          const payload = await response.json();
+
+          if (!response.ok) {
+            throw new Error(payload.detail || "Crawl failed");
+          }
+
+          setResults(payload.links, payload.root_url);
+          setStatus(`Finished. ${payload.count} link${payload.count === 1 ? "" : "s"} discovered.`);
+        } catch (error) {
+          setResults([], "");
+          setStatus(error.message || "Crawl failed", true);
+        } finally {
+          runButton.disabled = false;
+        }
+      }
+
+      async function copyLinks() {
+        if (!currentLinks.length) {
+          return;
+        }
+        await navigator.clipboard.writeText(currentLinks.join("\n"));
+        setStatus("Copied links to clipboard.");
+      }
+
+      function downloadLinks() {
+        if (!currentLinks.length) {
+          return;
+        }
+        const blob = new Blob([`${currentLinks.join("\n")}\n`], { type: "text/plain;charset=utf-8" });
+        const url = URL.createObjectURL(blob);
+        const anchor = document.createElement("a");
+        anchor.href = url;
+        anchor.download = "links.txt";
+        anchor.click();
+        URL.revokeObjectURL(url);
+        setStatus("Downloaded links.txt");
+      }
+
+      form.addEventListener("submit", runCrawl);
+      copyButton.addEventListener("click", copyLinks);
+      downloadButton.addEventListener("click", downloadLinks);
+      maxDepthInput.addEventListener("change", updateHero);
+      domainLockInput.addEventListener("change", updateHero);
+
+      sampleButtons.forEach((button) => {
+        button.addEventListener("click", () => {
+          rootUrlInput.value = button.dataset.url;
+          rootUrlInput.focus();
+        });
+      });
+
+      updateHero();
+    </script>
+  </body>
+</html>
