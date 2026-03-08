@@ -7,6 +7,8 @@ from collections import deque
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Iterable
+from urllib.error import HTTPError, URLError
+from urllib.request import Request, urlopen
 from urllib.parse import urljoin, urldefrag, urlparse
 
 from bs4 import BeautifulSoup
@@ -66,9 +68,7 @@ def filter_links(links: Iterable[str], root_url: str, domain_lock: bool) -> list
     return filtered
 
 
-async def fetch_links_from_page(page: Page, url: str) -> list[str]:
-    await page.goto(url, wait_until="domcontentloaded", timeout=30_000)
-    html = await page.content()
+def extract_links_from_html(html: str, base_url: str) -> list[str]:
     soup = BeautifulSoup(html, "html.parser")
 
     candidates: list[str] = []
@@ -76,11 +76,17 @@ async def fetch_links_from_page(page: Page, url: str) -> list[str]:
         href = anchor.get("href")
         if not href:
             continue
-        normalized = normalize_url(href, url)
+        normalized = normalize_url(href, base_url)
         if normalized:
             candidates.append(normalized)
 
     return candidates
+
+
+async def fetch_links_from_page(page: Page, url: str) -> list[str]:
+    await page.goto(url, wait_until="domcontentloaded", timeout=30_000)
+    html = await page.content()
+    return extract_links_from_html(html, url)
 
 
 async def fetch_links(browser_context: BrowserContext, url: str) -> list[str]:
@@ -91,6 +97,31 @@ async def fetch_links(browser_context: BrowserContext, url: str) -> list[str]:
         return []
     finally:
         await page.close()
+
+
+def fetch_links_via_http_sync(url: str) -> list[str]:
+    request = Request(
+        url,
+        headers={
+            "User-Agent": (
+                "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
+                "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0 Safari/537.36"
+            )
+        },
+    )
+
+    try:
+        with urlopen(request, timeout=30) as response:
+            charset = response.headers.get_content_charset() or "utf-8"
+            html = response.read().decode(charset, errors="replace")
+    except (HTTPError, URLError, TimeoutError, ValueError):
+        return []
+
+    return extract_links_from_html(html, url)
+
+
+async def fetch_links_via_http(url: str) -> list[str]:
+    return await asyncio.to_thread(fetch_links_via_http_sync, url)
 
 
 def get_browser_launch_options() -> dict[str, object]:
@@ -110,6 +141,43 @@ def get_browser_launch_options() -> dict[str, object]:
     return options
 
 
+def should_use_playwright() -> bool:
+    if os.getenv("CRAWLER_USE_PLAYWRIGHT") == "1":
+        return True
+    if os.getenv("VERCEL"):
+        return False
+    return True
+
+
+async def crawl_with_http(config: CrawlConfig, root_url: str) -> list[str]:
+    visited: set[str] = {root_url}
+    ordered_results: list[str] = [root_url]
+    queue: deque[tuple[str, int]] = deque([(root_url, 0)])
+
+    while queue:
+        current_depth = queue[0][1]
+        level_items: list[tuple[str, int]] = []
+
+        while queue and queue[0][1] == current_depth:
+            level_items.append(queue.popleft())
+
+        if current_depth >= config.max_depth:
+            continue
+
+        tasks = [fetch_links_via_http(url) for url, _depth in level_items]
+        results = await asyncio.gather(*tasks)
+
+        for (_source_url, _depth), extracted_links in zip(level_items, results):
+            for link in filter_links(extracted_links, root_url, config.domain_lock):
+                if link in visited:
+                    continue
+                visited.add(link)
+                ordered_results.append(link)
+                queue.append((link, current_depth + 1))
+
+    return ordered_results
+
+
 async def crawl(config: CrawlConfig) -> list[str]:
     if config.max_depth < 0:
         raise ValueError("max_depth must be >= 0")
@@ -122,34 +190,40 @@ async def crawl(config: CrawlConfig) -> list[str]:
     ordered_results: list[str] = [root_url]
     queue: deque[tuple[str, int]] = deque([(root_url, 0)])
 
-    async with async_playwright() as playwright:
-        browser: Browser = await playwright.chromium.launch(**get_browser_launch_options())
-        context = await browser.new_context()
-
+    if should_use_playwright():
         try:
-            while queue:
-                current_depth = queue[0][1]
-                level_items: list[tuple[str, int]] = []
+            async with async_playwright() as playwright:
+                browser: Browser = await playwright.chromium.launch(**get_browser_launch_options())
+                context = await browser.new_context()
 
-                while queue and queue[0][1] == current_depth:
-                    level_items.append(queue.popleft())
+                try:
+                    while queue:
+                        current_depth = queue[0][1]
+                        level_items: list[tuple[str, int]] = []
 
-                if current_depth >= config.max_depth:
-                    continue
+                        while queue and queue[0][1] == current_depth:
+                            level_items.append(queue.popleft())
 
-                tasks = [fetch_links(context, url) for url, _depth in level_items]
-                results = await asyncio.gather(*tasks)
-
-                for (_source_url, _depth), extracted_links in zip(level_items, results):
-                    for link in filter_links(extracted_links, root_url, config.domain_lock):
-                        if link in visited:
+                        if current_depth >= config.max_depth:
                             continue
-                        visited.add(link)
-                        ordered_results.append(link)
-                        queue.append((link, current_depth + 1))
-        finally:
-            await context.close()
-            await browser.close()
+
+                        tasks = [fetch_links(context, url) for url, _depth in level_items]
+                        results = await asyncio.gather(*tasks)
+
+                        for (_source_url, _depth), extracted_links in zip(level_items, results):
+                            for link in filter_links(extracted_links, root_url, config.domain_lock):
+                                if link in visited:
+                                    continue
+                                visited.add(link)
+                                ordered_results.append(link)
+                                queue.append((link, current_depth + 1))
+                finally:
+                    await context.close()
+                    await browser.close()
+        except Exception:
+            ordered_results = await crawl_with_http(config, root_url)
+    else:
+        ordered_results = await crawl_with_http(config, root_url)
 
     if config.output_file is not None:
         config.output_file.write_text("\n".join(ordered_results) + "\n", encoding="utf-8")

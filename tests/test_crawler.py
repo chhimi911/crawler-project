@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import unittest
 
-from crawler import filter_links, normalize_url, same_registered_domain
+from crawler import extract_links_from_html, filter_links, normalize_url, same_registered_domain
 
 
 class CrawlerHelpersTest(unittest.TestCase):
@@ -33,6 +33,24 @@ class CrawlerHelpersTest(unittest.TestCase):
     def test_same_registered_domain_matches_subdomains(self) -> None:
         self.assertTrue(
             same_registered_domain("https://docs.example.com", "https://example.com")
+        )
+
+    def test_extract_links_from_html_normalizes_relative_and_absolute_links(self) -> None:
+        html = """
+        <html>
+            <body>
+                <a href="/docs">Docs</a>
+                <a href="https://example.com/about#team">About</a>
+                <a href="mailto:test@example.com">Ignore</a>
+            </body>
+        </html>
+        """
+        self.assertEqual(
+            extract_links_from_html(html, "https://example.com/start"),
+            [
+                "https://example.com/docs",
+                "https://example.com/about",
+            ],
         )
 
 

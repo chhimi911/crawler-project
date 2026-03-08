@@ -1,4 +1,3 @@
 {
-  "$schema": "https://openapi.vercel.sh/vercel.json",
-  "buildCommand": "PLAYWRIGHT_BROWSERS_PATH=0 python -m playwright install --only-shell chromium"
+  "$schema": "https://openapi.vercel.sh/vercel.json"
 }
