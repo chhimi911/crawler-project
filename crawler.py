@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import asyncio
+import os
 from collections import deque
 from dataclasses import dataclass
 from pathlib import Path
@@ -25,7 +26,7 @@ class CrawlConfig:
     root_url: str
     max_depth: int
     domain_lock: bool = True
-    output_file: Path = DEFAULT_OUTPUT
+    output_file: Path | None = DEFAULT_OUTPUT
 
 
 def normalize_url(candidate: str, base_url: str) -> str | None:
@@ -91,6 +92,23 @@ async def fetch_links(browser_context: BrowserContext, url: str) -> list[str]:
         await page.close()
 
 
+def get_browser_launch_options() -> dict[str, object]:
+    # Vercel's Python runtime is serverless and only supports headless Chromium.
+    options: dict[str, object] = {
+        "headless": True,
+        "chromium_sandbox": False,
+    }
+
+    if os.getenv("VERCEL"):
+        options["args"] = [
+            "--disable-dev-shm-usage",
+            "--disable-gpu",
+            "--no-zygote",
+        ]
+
+    return options
+
+
 async def crawl(config: CrawlConfig) -> list[str]:
     if config.max_depth < 0:
         raise ValueError("max_depth must be >= 0")
@@ -104,7 +122,7 @@ async def crawl(config: CrawlConfig) -> list[str]:
     queue: deque[tuple[str, int]] = deque([(root_url, 0)])
 
     async with async_playwright() as playwright:
-        browser: Browser = await playwright.chromium.launch(headless=True)
+        browser: Browser = await playwright.chromium.launch(**get_browser_launch_options())
         context = await browser.new_context()
 
         try:
@@ -132,7 +150,8 @@ async def crawl(config: CrawlConfig) -> list[str]:
             await context.close()
             await browser.close()
 
-    config.output_file.write_text("\n".join(ordered_results) + "\n", encoding="utf-8")
+    if config.output_file is not None:
+        config.output_file.write_text("\n".join(ordered_results) + "\n", encoding="utf-8")
     return ordered_results
 
 
